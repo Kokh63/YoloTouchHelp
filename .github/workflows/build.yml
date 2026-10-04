@@ -1,35 +1,47 @@
 name: Build YoloTouchHelp APK
 
 on:
-  workflow_dispatch: # 允许在页面上手动点击触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    # 1. 拉取源码
+    - name: Checkout repository
       uses: actions/checkout@v4
 
+    # 2. 配置 JDK 17（Android Gradle Plugin 7.x+ 要求）
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
+    # 3. 配置 Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
+    # 4. 安装项目要求的 NDK 版本（支持 16KB page size）
     - name: Install Android NDK
       run: |
-        yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_HOME} "ndk;27.0.12077973" # 使用一个稳定的NDK版本
-        echo "ANDROID_NDK_HOME=${ANDROID_HOME}/ndk/27.0.12077973" >> $GITHUB_ENV
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          --sdk_root=$ANDROID_HOME \
+          "ndk;28.2.13676358"
+        echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_ENV
 
-    - name: Build Release APK
-      run: ./gradlew assembleRelease # 尝试构建Release版，如果失败可改为 assembleDebug
+    # 5. 赋予 gradlew 执行权限（Linux 环境必需）
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
 
+    # 6. 清理并构建 Debug APK（首次运行避免缓存干扰）
+    - name: Build Debug APK
+      run: ./gradlew clean assembleDebug --stacktrace
+
+    # 7. 上传 APK 产物
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: YoloTouchHelp-APK
-        path: app/build/outputs/apk/release/app-release.apk # 如果是Debug版，路径为 app/build/outputs/apk/debug/app-debug.apk
+        name: YoloTouchHelp-Debug-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
